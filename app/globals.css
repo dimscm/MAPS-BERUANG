@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: #e2e8f0;
+}
+
+/* Scrollbar ramping untuk panel daftar */
+.nof-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.nof-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+/* Label nama toko di peta */
+.leaflet-tooltip.nof-label {
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+/* Tombol di popup peta: warna teks link Leaflet ditimpa agar tetap putih */
+.leaflet-container a.nof-popup-btn,
+.leaflet-container a.nof-popup-btn:hover {
+  color: #ffffff;
+  text-decoration: none;
+}
+.leaflet-popup-content {
+  margin: 10px 12px;
+}
+.leaflet-container a.nof-photo-link,
+.leaflet-container a.nof-photo-link:hover {
+  color: #334155;
+  text-decoration: none;
+}
