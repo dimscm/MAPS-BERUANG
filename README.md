@@ -1,51 +1,43 @@
-# Maps Beruang 🐻📍
+# Maps Beruang 🐻
 
-Peta outlet survei **Bear Brand yang belum jual S7K & Collagena** untuk tim sales — cari outlet terdekat,
-lihat data survei (pemilik, status FU/NOO, transaksi Collagena/S7K, tempat beli, foto toko), navigasi,
-dan catat kunjungan yang otomatis masuk Google Sheet per RSM.
+Web statis untuk menjelajahi **5.193 outlet Bear Brand yang belum jual S7K & Collagena**
+(Jakbar, Jaksel, Jaktim, Jakut, Jakpus, Kota Bekasi) — tampilan mengikuti
+[pokemon-lemine](https://github.com/dimscm/pokemon-lemine).
 
 Live: https://dimscm.github.io/MAPS-BERUANG/
 
-## Data
+Fitur:
+- **Peta** outlet (cluster) dengan popup → detail, **Rute** ke Google Maps, outlet terdekat dari GPS
+- **Tabel** yang bisa diurutkan, klik baris untuk detail lengkap + foto toko
+- **Ringkasan** per RSM, kecamatan, segmen, status FU/NOO, transaksi, sumber pembelian S7K/BB
+- Filter: pencarian, status kunjungan, jarak, RSM → kota → kecamatan → kelurahan, segmen, status FU/NOO, punya data
+- Tanda **sudah didatangi** + catatan per outlet, terlihat oleh seluruh tim lewat Google Sheet
+- Unduh Excel sesuai filter, termasuk status, tanggal, petugas, dan catatan kunjungan
 
-`public/seed-outlets.json` dibuat dari Excel `LIST OUTLET BB TDK JUAL S7K & COLLAGENA` (7 sheet: Jakbar,
-Jaksel 1, Jaksel 2, Jaktim, Jakut, Jakpus, BEKASI KOTA) — 5.194 outlet. Koordinat diambil dari kolom
-`Koordinat Geotag` / `Lat Long`; kecamatan, kelurahan, kota dicocokkan dari titik koordinat ke batas desa
-Kemendagri 2020.
+## Memperbarui data
 
-Memperbarui data dari Excel baru:
-
-```bash
-python3 scripts/build_seed.py "LIST_OUTLET.xlsx" public/seed-outlets.json
-# (opsional) isi kecamatan/kelurahan/kota dari batas wilayah dengan skrip tag point-in-polygon
+```sh
+pip install openpyxl
+python3 scripts/convert.py LIST_OUTLET_BB_TDK_JUAL_S7K___COLLAGENA.xlsx
 ```
 
-lalu naikkan `SEED_VERSION` di `lib/config.ts` dan push. Aplikasi pengguna otomatis memuat data baru;
-outlet tambahan manual dan riwayat kunjungan tetap tersimpan.
+Skrip membaca semua sheet (format sheet BEKASI KOTA berbeda dan ikut ditangani), mengambil koordinat dari
+kolom teks `Koordinat Geotag` / `Lat Long`, menentukan kota dari kecamatan (`scripts/kecamatan_kota.json`),
+lalu menulis ulang `data/outlets.js` dan memberi penanda versi di `index.html`. id outlet dibentuk dari
+nama + koordinat, jadi tanda kunjungan tetap nyambung setelah data diperbarui. Kalau `app.js`/`style.css`/
+`config.js` diubah manual, jalankan `python3 scripts/stamp.py`.
 
-## Fitur
+## Tanda kunjungan bersama (Google Sheet)
 
-- Peta (Leaflet + OpenStreetMap), radius dari GPS, pencarian nama/pemilik/status ke semua outlet
-- Filter RSM, segmen (Solus BB, BB only, Dual S7K & BB, …), kecamatan → kelurahan, status kunjungan
-- Klik titik → popup: segmen, pemilik, foto toko/chiller, **Navigasi** (Google Maps), **Catat Visit**
-- Data disimpan di IndexedDB browser (cukup untuk ±5.000 outlet, tetap ada saat offline/refresh)
+1. Buat Google Sheet baru (mis. "Kunjungan Maps Beruang").
+2. **Extensions → Apps Script**, hapus isi `Code.gs`, tempel [`apps-script/Code.gs`](apps-script/Code.gs). Simpan.
+3. (Disarankan) **Project Settings → Script Properties**: `KODE_TIM` = kode rahasia tim.
+4. **Deploy → New deployment → Web app** · Execute as **Me** · Who has access **Anyone** → Deploy → salin URL `/exec`.
+5. Tempel ke `config.js` (`window.VISITS_API = "…"`), jalankan `python3 scripts/stamp.py`, commit & push.
 
-## Hasil kunjungan ke Google Sheet
-
-Setiap kunjungan dikirim ke tab `SEMUA` dan tab per RSM (JAKBAR 1, JAKBAR 2, JAKSEL 1, JAKSEL 2,
-JAKTIM, JAKUT, JAKPUS, BEKASI KOTA). Kunjungan tim dibaca balik sehingga warna titik sama di semua pengguna.
-
-1. Buat Google Sheet baru → **Extensions → Apps Script**, tempel `google-apps-script/Code.gs`, simpan.
-2. **Deploy → New deployment → Web app**; Execute as **Me**; Who has access **Anyone** → Deploy.
-3. Salin URL Web App ke `SHEET_WEBHOOK_URL` di `lib/config.ts`, push.
-4. Perubahan script berikutnya: **Manage deployments → ✏️ → New version** (URL tetap sama).
-
-## Menjalankan lokal
-
-```bash
-npm install
-npm run dev
-BASE_PATH=/MAPS-BERUANG npm run build   # static export ke out/
-```
+Tab **Kunjungan** berisi satu baris per outlet (id, nama, RSM, kecamatan, kelurahan, status, tanggal, petugas,
+catatan). Tab per RSM (JAKBAR 1, JAKSEL 2, JAKTIM, BEKASI KOTA, …) dibuat otomatis dan isinya mengikuti tab
+Kunjungan lewat rumus `FILTER`. Web memuat ulang data tiap 30 detik. Kalau `Code.gs` diubah:
+**Deploy → Manage deployments → ✏️ → Version: New version** supaya URL tetap sama.
 
 Deploy otomatis ke GitHub Pages lewat `.github/workflows/deploy.yml` setiap push ke `main`.

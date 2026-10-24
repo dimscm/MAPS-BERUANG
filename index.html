@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maps Beruang</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
+<link rel="stylesheet" href="style.css?v=51d3058934">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <h1>🐻 Maps Beruang · Outlet BB Belum Jual S7K &amp; Collagena</h1>
+    <p class="sub" id="subtitle">Memuat data…</p>
+    <p class="sub sync" id="syncNote"></p>
+    <form class="key-form" id="keyForm" hidden>
+      <input type="password" id="teamKey" placeholder="Kode tim" autocomplete="off" aria-label="Kode tim">
+      <button class="btn" type="submit">Masuk</button>
+    </form>
+  </div>
+  <div class="top-actions">
+    <button id="btnExport" class="btn">Unduh Excel</button>
+    <button id="btnFilters" class="btn btn-ghost only-mobile">Filter</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="filters" id="filters">
+    <div class="filters-head">
+      <h2>Filter</h2>
+      <button id="btnReset" class="link">Reset</button>
+    </div>
+    <label class="field">
+      <span>Cari nama / pemilik / status / grosir</span>
+      <input type="search" id="fSearch" placeholder="mis. barokah, PROSES NOO, Pasar Minggu">
+    </label>
+    <label class="field"><span>Status kunjungan</span>
+      <select id="fVisit">
+        <option value="">Semua</option>
+        <option value="belum">Belum didatangi</option>
+        <option value="sudah">Sudah didatangi</option>
+      </select>
+    </label>
+    <label class="field"><span>Jarak dari lokasimu</span>
+      <select id="fRadius" disabled>
+        <option value="">Semua jarak</option>
+        <option value="500">≤ 500 m</option>
+        <option value="1000">≤ 1 km</option>
+        <option value="2000">≤ 2 km</option>
+        <option value="5000">≤ 5 km</option>
+      </select>
+    </label>
+    <label class="field"><span>RSM</span><select id="fRsm"></select></label>
+    <label class="field"><span>Kota</span><select id="fKota"></select></label>
+    <label class="field"><span>Kecamatan</span><select id="fKec"></select></label>
+    <label class="field"><span>Kelurahan</span><select id="fKel"></select></label>
+    <label class="field"><span>Segmen</span><select id="fSeg"></select></label>
+    <label class="field"><span>Status FU / NOO</span><select id="fStatus"></select></label>
+    <fieldset class="field">
+      <legend>Punya data</legend>
+      <div id="fHas" class="chips"></div>
+    </fieldset>
+  </aside>
+
+  <main class="content">
+    <section class="kpis" id="kpis"></section>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="map">Peta</button>
+      <button class="tab" data-tab="table">Tabel</button>
+      <button class="tab" data-tab="summary">Ringkasan</button>
+    </nav>
+
+    <section class="panel" id="tab-map">
+      <div id="map"></div>
+      <div class="legend">
+        <span><i class="dot dot-todo"></i>Belum didatangi</span>
+        <span><i class="dot dot-done"></i>Sudah didatangi</span>
+        <span><i class="dot dot-me"></i>Lokasi kamu</span>
+        <span class="muted">Angka di lingkaran = jumlah outlet di area itu</span>
+      </div>
+      <section class="nearby card" id="nearby">
+        <div class="nearby-head">
+          <h3>Outlet terdekat</h3>
+          <div class="nearby-actions">
+            <button class="btn" id="btnLocate" type="button">Gunakan lokasi saya</button>
+            <button class="btn btn-ghost" id="btnPick" type="button">Pilih titik di peta</button>
+          </div>
+        </div>
+        <p class="loc-note" id="locNote">Aktifkan lokasi untuk melihat outlet terdekat dari posisimu. Daftar mengikuti filter yang aktif.</p>
+        <ol class="nearby-list" id="nearbyList"></ol>
+        <button class="link" id="nearbyMore" type="button" hidden>Tampilkan 10 lagi</button>
+      </section>
+    </section>
+
+    <section class="panel hidden" id="tab-table">
+      <div class="table-wrap">
+        <table id="tbl">
+          <thead><tr>
+            <th data-sort="_visit">Status</th>
+            <th data-sort="Nama Toko">Nama Toko</th>
+            <th data-sort="Pemilik">Pemilik</th>
+            <th data-sort="RSM">RSM</th>
+            <th data-sort="Segmen">Segmen</th>
+            <th data-sort="Kecamatan">Kecamatan</th>
+            <th data-sort="Kelurahan">Kelurahan</th>
+            <th data-sort="Status FU/NOO">Status FU/NOO</th>
+            <th>Catatan</th>
+            <th data-sort="_dist" class="num dist-col" hidden>Jarak</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button class="btn btn-ghost" id="prev">‹ Sebelumnya</button>
+        <span id="pageInfo"></span>
+        <button class="btn btn-ghost" id="next">Berikutnya ›</button>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="tab-summary">
+      <div class="charts" id="charts"></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose" aria-label="Tutup">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js?v=dffe969d4a"></script>
+<script src="data/outlets.js?v=9604e47c60"></script>
+<script src="app.js?v=79539b5f0f"></script>
+</body>
+</html>
