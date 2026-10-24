@@ -4,7 +4,7 @@ Peta outlet survei **Bear Brand yang belum jual S7K & Collagena** untuk tim sale
 lihat data survei (pemilik, status FU/NOO, transaksi Collagena/S7K, tempat beli, foto toko), navigasi,
 dan catat kunjungan yang otomatis masuk Google Sheet per RSM.
 
-Live: https://dimscm.github.io/maps-beruang/
+Live: https://dimscm.github.io/MAPS-BERUANG/
 
 ## Data
 
@@ -45,7 +45,7 @@ JAKTIM, JAKUT, JAKPUS, BEKASI KOTA). Kunjungan tim dibaca balik sehingga warna t
 ```bash
 npm install
 npm run dev
-BASE_PATH=/maps-beruang npm run build   # static export ke out/
+BASE_PATH=/MAPS-BERUANG npm run build   # static export ke out/
 ```
 
 Deploy otomatis ke GitHub Pages lewat `.github/workflows/deploy.yml` setiap push ke `main`.
