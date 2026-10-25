@@ -78,9 +78,13 @@
     }
     store.needKey = false;
     store.loadedAt = new Date();
+    // Gambar ulang hanya bila data kunjungan memang berubah (supaya popup/ketukan tidak terganggu)
+    const sig = JSON.stringify(j.visits);
+    renderSyncNote();
+    if (sig === store.lastSig) return;
+    store.lastSig = sig;
     visits.clear();
     j.visits.forEach((v) => visits.set(v.id, v));
-    renderSyncNote();
     refresh();
   }
 
@@ -233,7 +237,11 @@
     document.querySelectorAll(".chip.on").forEach((c) => c.classList.remove("on"));
     cascade(); apply();
   });
-  $("btnFilters").addEventListener("click", () => $("filters").classList.toggle("open"));
+  // Di HP filter tampil sebagai panel penuh
+  const setFilters = (open) => { $("filters").classList.toggle("open", open); document.body.classList.toggle("no-scroll", open); };
+  $("btnFilters").addEventListener("click", () => setFilters(!$("filters").classList.contains("open")));
+  $("btnCloseFilters").addEventListener("click", () => setFilters(false));
+  $("filterCount").addEventListener("click", () => { setFilters(false); window.scrollTo({ top: 0, behavior: "smooth" }); });
 
   function apply(keepView) {
     const q = $("fSearch").value.trim().toLowerCase();
@@ -249,7 +257,22 @@
       return true;
     });
     if (!keepView) state.page = 0;
-    renderKpis(); renderMap(keepView); renderTable(); renderSummary(); renderNearby();
+    renderKpis(); renderMap(keepView); renderNearby(); renderFilterBadge();
+    dirty.table = dirty.summary = true;
+    renderVisiblePanels();
+  }
+  // Tabel & ringkasan hanya digambar bila tab-nya sedang dibuka
+  const dirty = { table: true, summary: true };
+  let activeTab = "map";
+  function renderVisiblePanels() {
+    if (activeTab === "table" && dirty.table) { renderTable(); dirty.table = false; }
+    if (activeTab === "summary" && dirty.summary) { renderSummary(); dirty.summary = false; }
+  }
+  function renderFilterBadge() {
+    const n = Object.keys(selects).filter((id) => $(id).value).length + state.has.size +
+      ["fSearch", "fVisit", "fRadius"].filter((id) => $(id).value).length;
+    $("btnFilters").textContent = n ? `Filter (${n})` : "Filter";
+    $("filterCount").textContent = `Lihat ${fmt.format(filtered.length)} outlet`;
   }
   // Dipanggil saat data kunjungan berubah: jangan geser peta atau halaman tabel.
   function refresh() { apply(true); }
@@ -274,29 +297,45 @@
   }
 
   // ---------- map ----------
-  const map = L.map("map", { preferCanvas: true, maxZoom: 19 }).setView([-6.22, 106.88], 11);
+  const touch = matchMedia("(pointer: coarse)").matches;
+  // tolerance: area ketuk titik diperbesar supaya mudah diketuk di HP
+  const map = L.map("map", { preferCanvas: true, renderer: L.canvas({ tolerance: touch ? 12 : 4 }), maxZoom: 19, tap: false })
+    .setView([-6.22, 106.88], 11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
   }).addTo(map);
-  const cluster = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false });
+  const cluster = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 60 });
   map.addLayer(cluster);
 
-  function renderMap(keepView) {
-    cluster.clearLayers();
-    const markers = filtered.filter((o) => o.latitude && o.longitude).map((o) => {
-      const done = isVisited(o);
-      const m = L.circleMarker([o.latitude, o.longitude], {
-        radius: 7, weight: 2, color: "#fff", fillColor: done ? COLOR_VISITED : COLOR_PENDING, fillOpacity: 0.95,
-      });
-      m.bindPopup(`<div class="pop-title">${esc(o["Nama Toko"])}</div>
+  const markerCache = new Map();
+  let shownKey = "";
+  function popupHtml(o) {
+    const done = isVisited(o);
+    return `<div class="pop-title">${esc(o["Nama Toko"])}</div>
         <div><span class="pill ${done ? "pill-done" : "pill-todo"}">${done ? "Sudah didatangi" : "Belum didatangi"}</span>
           <span class="tag">${esc(o.Segmen)}</span></div>
         <div class="pop-sub">${esc(o.Pemilik ? "Pemilik " + o.Pemilik + " · " : "")}${esc(o.Kelurahan)}, ${esc(o.Kecamatan)} · ${esc(o.RSM)}</div>
         ${o["Status FU/NOO"] ? `<div>Status: <b>${esc(o["Status FU/NOO"])}</b></div>` : ""}
         <div class="pop-actions"><button class="btn pop-btn" data-open="${o._i}">Lihat detail</button>
-          <a href="${routeUrl(o)}" target="_blank" rel="noopener">Rute ↗</a></div>`);
-      return m;
-    });
+          <a class="btn btn-ghost pop-btn" href="${routeUrl(o)}" target="_blank" rel="noopener">Rute ↗</a></div>`;
+  }
+  function markerFor(o) {
+    let m = markerCache.get(o._i);
+    if (!m) {
+      m = L.circleMarker([o.latitude, o.longitude], { radius: touch ? 9 : 7, weight: 2, color: "#fff", fillOpacity: 0.95 });
+      m.bindPopup(() => popupHtml(o), { maxWidth: 280 }); // isi dibuat saat dibuka → status selalu terbaru
+      markerCache.set(o._i, m);
+    }
+    m.setStyle({ fillColor: isVisited(o) ? COLOR_VISITED : COLOR_PENDING });
+    return m;
+  }
+  function renderMap(keepView) {
+    const list = filtered.filter((o) => o.latitude && o.longitude);
+    const key = list.length + ":" + list.map((o) => o._i).join(",");
+    const markers = list.map(markerFor);
+    if (key === shownKey) return; // isi sama: cukup warna yang diperbarui
+    shownKey = key;
+    cluster.clearLayers();
     cluster.addLayers(markers);
     if (markers.length && !keepView) map.fitBounds(cluster.getBounds(), { padding: [30, 30], maxZoom: 16 });
   }
@@ -321,9 +360,10 @@
     const moved = me.appliedAt ? distM(me.appliedAt[0], me.appliedAt[1], lat, lng) : Infinity;
     Object.assign(me, { lat, lng, acc });
     meLayer.clearLayers();
-    if (acc) L.circle([lat, lng], { radius: acc, color: "#2563eb", weight: 1, fillOpacity: 0.08 }).addTo(meLayer);
-    L.circleMarker([lat, lng], { radius: 8, weight: 3, color: "#fff", fillColor: "#2563eb", fillOpacity: 1 })
-      .bindTooltip(manual ? "Titik yang kamu pilih" : "Lokasi kamu").addTo(meLayer);
+    // interactive:false → titik lokasi tidak menghalangi ketukan ke outlet di bawahnya
+    if (acc) L.circle([lat, lng], { radius: acc, color: "#2563eb", weight: 1, fillOpacity: 0.08, interactive: false }).addTo(meLayer);
+    L.circleMarker([lat, lng], { radius: 8, weight: 3, color: "#fff", fillColor: "#2563eb", fillOpacity: 1, interactive: false })
+      .addTo(meLayer);
     $("fRadius").disabled = false;
     setLocNote(manual ? "Memakai titik yang kamu pilih di peta."
       : `Lokasi ditemukan${acc ? ` (akurasi ± ${fmtDist(acc)})` : ""}. Daftar diperbarui saat kamu bergerak.`);
@@ -454,6 +494,12 @@
       th.classList.toggle("asc", th.dataset.sort === k && state.asc);
     });
     document.querySelectorAll("th.dist-col").forEach((th) => { th.hidden = me.lat == null; });
+    // label kolom untuk tampilan kartu di HP
+    const heads = [...document.querySelectorAll("#tbl thead th")].map((th) => th.textContent.replace(/[▴▾]/g, "").trim());
+    document.querySelectorAll("#tbl tbody tr[data-i]").forEach((tr) => [...tr.children].forEach((td, i) => {
+      td.dataset.label = heads[i] || "";
+      if (!td.textContent.trim()) td.classList.add("empty");
+    }));
     $("pageInfo").textContent = `Halaman ${state.page + 1} dari ${pages} · ${fmt.format(rows.length)} outlet`;
     $("prev").disabled = state.page === 0;
     $("next").disabled = state.page >= pages - 1;
@@ -621,7 +667,9 @@
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === b));
     document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== "tab-" + b.dataset.tab));
-    if (b.dataset.tab === "map") map.invalidateSize();
+    activeTab = b.dataset.tab;
+    if (activeTab === "map") map.invalidateSize();
+    renderVisiblePanels();
   }));
 
   // ---------- export ----------
@@ -659,6 +707,10 @@
   $("btnExport").addEventListener("click", exportExcel);
 
   $("subtitle").textContent = `${fmt.format(outlets.length)} outlet hasil survei · ${uniq(outlets, "RSM").length} RSM · ${new Set(outlets.map((o) => o.Kecamatan)).size} kecamatan`;
+  // tinggi header untuk posisi tab yang menempel (HP)
+  const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", document.querySelector(".topbar").offsetHeight + "px");
+  setTopbarH();
+  new ResizeObserver(setTopbarH).observe(document.querySelector(".topbar"));
   initStore();
   apply();
 })();

@@ -197,3 +197,73 @@ dl.kv dd { margin: 0; word-break: break-word; }
 @media (prefers-color-scheme: dark) { .tag { background: #3a2c0c; color: #fcd34d; } }
 .detail-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; }
 .detail-links a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* ---------- Revisi tampilan HP ---------- */
+.filters-head-actions { display: flex; align-items: center; gap: 14px; }
+.filters-head-actions .modal-close { position: static; font-size: 28px; line-height: 1; padding: 0 4px; }
+.pop-actions .pop-btn { margin-top: 0; padding: 8px 14px; text-decoration: none; display: inline-block; }
+.pop-actions a.btn-ghost { color: var(--accent); }
+.leaflet-popup-content .pill { margin-top: 4px; }
+body.no-scroll { overflow: hidden; }
+
+@media (max-width: 860px) {
+  .hide-mobile, .h1-sub { display: none; }
+  .topbar { padding: 8px 12px; gap: 8px; }
+  .topbar h1 { font-size: 16px; }
+  .sub { font-size: 11px; margin-top: 1px; }
+  .top-actions .btn { padding: 8px 12px; }
+
+  /* kartu angka: satu baris, geser ke samping */
+  .kpis { display: flex; overflow-x: auto; gap: 8px; margin: 0 -16px 10px; padding: 0 16px 4px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .kpis::-webkit-scrollbar { display: none; }
+  .kpi { flex: 0 0 132px; padding: 8px 10px; scroll-snap-align: start; border-radius: 10px; }
+  .kpi .value { font-size: 18px; }
+  .kpi .label, .kpi .hint { font-size: 11px; }
+
+  /* tab menempel di bawah header */
+  .tabs { position: sticky; top: var(--topbar-h, 64px); z-index: 1000; background: var(--bg); margin: 0 -16px 10px; padding: 0 16px; }
+  .tab { flex: 1; padding: 10px 6px; }
+  .content { padding: 10px 16px 24px; }
+  #map { height: calc(100dvh - var(--topbar-h, 64px) - 120px); min-height: 360px; }
+
+  /* filter: panel penuh */
+  .filters, .filters.open { position: fixed; inset: 0; z-index: 3000; max-height: none; border: 0; padding: 14px 16px 90px; overflow-y: auto; }
+  .filters { display: none; }
+  .filters.open { display: block; }
+  .filters .field select, .filters .field input { padding: 10px; font-size: 16px; }
+  .chip { padding: 7px 12px; font-size: 13px; }
+  .filters-foot { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px; background: var(--surface); border-top: 1px solid var(--border); }
+  .filters-foot .btn { width: 100%; padding: 12px; font-size: 15px; }
+
+  /* tabel jadi kartu */
+  .table-wrap { background: none; border: 0; overflow: visible; }
+  #tbl thead { display: none; }
+  #tbl, #tbl tbody { display: block; }
+  #tbl tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  #tbl td { display: block; border: 0; padding: 2px 0; white-space: normal; min-width: 0; overflow-wrap: anywhere; }
+  #tbl td.empty { display: none; }
+  #tbl td::before { content: attr(data-label); display: block; font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  #tbl td:nth-child(1)::before, #tbl td:nth-child(2)::before { display: none; }
+  #tbl td:nth-child(1) { grid-column: 2; grid-row: 1; justify-self: end; }
+  #tbl td:nth-child(2) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: 15px; }
+  #tbl td.note-cell { grid-column: 1 / -1; max-width: none; }
+  .pager { gap: 8px; font-size: 12px; }
+
+  /* detail: layar penuh */
+  .modal { padding: 0; }
+  .modal-box { border-radius: 0; min-height: 100dvh; padding: 16px 16px 40px; }
+  .modal-close { position: sticky; top: 0; float: right; z-index: 1; background: var(--surface); border-radius: 50%; width: 40px; height: 40px; }
+  dl.kv { grid-template-columns: 120px 1fr; gap: 6px 10px; }
+  dl.kv dt { margin-top: 0; }
+  .visit-box textarea, .visit-box input[type="text"] { font-size: 16px; }
+  .visit-actions .btn { padding: 10px 22px; }
+  .near-item { padding: 10px 0; }
+}
+@media (max-width: 860px) {
+  .topbar > div:first-child { min-width: 0; }
+  .topbar .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #subtitle { display: none; }
+  .tabs { z-index: 1050; }
+}
+.top-actions .btn { white-space: nowrap; }
+#tbl a { color: var(--accent); font-weight: 600; text-decoration: none; }

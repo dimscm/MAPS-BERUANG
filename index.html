@@ -7,12 +7,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=51d3058934">
+<link rel="stylesheet" href="style.css?v=5cb10268f3">
 </head>
 <body>
 <header class="topbar">
   <div>
-    <h1>🐻 Maps Beruang · Outlet BB Belum Jual S7K &amp; Collagena</h1>
+    <h1>🐻 Maps Beruang<span class="h1-sub"> · Outlet BB Belum Jual S7K &amp; Collagena</span></h1>
     <p class="sub" id="subtitle">Memuat data…</p>
     <p class="sub sync" id="syncNote"></p>
     <form class="key-form" id="keyForm" hidden>
@@ -21,7 +21,7 @@
     </form>
   </div>
   <div class="top-actions">
-    <button id="btnExport" class="btn">Unduh Excel</button>
+    <button id="btnExport" class="btn"><span class="hide-mobile">Unduh </span>Excel</button>
     <button id="btnFilters" class="btn btn-ghost only-mobile">Filter</button>
   </div>
 </header>
@@ -30,7 +30,10 @@
   <aside class="filters" id="filters">
     <div class="filters-head">
       <h2>Filter</h2>
-      <button id="btnReset" class="link">Reset</button>
+      <div class="filters-head-actions">
+        <button id="btnReset" class="link">Reset</button>
+        <button id="btnCloseFilters" class="modal-close only-mobile" aria-label="Tutup filter">×</button>
+      </div>
     </div>
     <label class="field">
       <span>Cari nama / pemilik / status / grosir</span>
@@ -62,6 +65,7 @@
       <legend>Punya data</legend>
       <div id="fHas" class="chips"></div>
     </fieldset>
+    <div class="filters-foot only-mobile"><button class="btn" id="filterCount" type="button">Lihat outlet</button></div>
   </aside>
 
   <main class="content">
@@ -146,6 +150,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js?v=1b49113fb0"></script>
 <script src="data/outlets.js?v=328d6d5223"></script>
-<script src="app.js?v=b7cc0b9ad6"></script>
+<script src="app.js?v=1e821023f3"></script>
 </body>
 </html>
