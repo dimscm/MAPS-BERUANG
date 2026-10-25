@@ -439,10 +439,16 @@
       <td><span class="pill ${done ? "pill-done" : "pill-todo"}">${done ? "Sudah" : "Belum"}</span></td>
       <td>${esc(o["Nama Toko"])}</td><td>${esc(o.Pemilik)}</td><td>${esc(o.RSM)}</td><td>${esc(o.Segmen)}</td>
       <td>${esc(o.Kecamatan)}</td><td>${esc(o.Kelurahan)}</td><td>${esc(o["Status FU/NOO"])}</td>
+      <td>${esc(o["Kode Outlet"])}</td><td>${esc(o["Transaksi Collagena"])}</td><td>${esc(o["Transaksi S7K"])}</td>
+      <td>${esc(o["Transaksi S7K Kids"])}</td><td>${esc(o["Beli Collagena di"])}</td>
+      <td>${esc([o["Beli S7K - Nama"], o["Beli S7K - Lokasi"]].filter(Boolean).join(" — "))}</td>
+      <td>${esc([o["Beli BB - Nama"] || o["Grosir BB"], o["Beli BB - Alamat"] || o["Lokasi Grosir BB"]].filter(Boolean).join(" — "))}</td>
+      <td>${[["Toko", o["Foto Toko"]], ["Chiller", o["Foto Chiller"]]].filter(([, u]) => u)
+        .map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${l}</a>`).join(" · ")}</td>
       <td class="note-cell" title="${esc(v?.note)}">${esc(v?.note)}</td>
       <td class="num dist-col"${me.lat == null ? " hidden" : ""}>${o._dist != null ? fmtDist(o._dist) : ""}</td></tr>`;
     }).join("") ||
-      '<tr><td colspan="10">Tidak ada outlet yang cocok dengan filter.</td></tr>';
+      '<tr><td colspan="18">Tidak ada outlet yang cocok dengan filter.</td></tr>';
     document.querySelectorAll("th[data-sort]").forEach((th) => {
       th.classList.toggle("sorted", th.dataset.sort === k);
       th.classList.toggle("asc", th.dataset.sort === k && state.asc);
@@ -558,7 +564,8 @@
       ${section("Brand susu di toko", kv([
         ["TPH LS", e("TPH LS")], ["Di rak", e("Brand Susu di Toko")], ["Di chiller", e("Brand Susu di Chiller")],
       ]))}
-      ${section("Foto", photos ? `<div class="photos">${photos}</div>` : "")}`;
+      ${section("Foto", photos ? `<div class="photos">${photos}</div><div class="detail-links">${PHOTO_COLS.filter((c) => o[c])
+        .map((c) => `<a href="${esc(o[c])}" target="_blank" rel="noopener">📷 Buka ${esc(c)} ↗</a>`).join("")}</div>` : "")}`;
     $("modal").classList.remove("hidden");
     renderVisitMeta(o);
 

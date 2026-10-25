@@ -61,7 +61,7 @@ def coord(text):
 
 def url(v):
     v = s(v)
-    return v if v.startswith("https://") and "/users//" not in v else ""
+    return v if v.startswith("https://") else ""
 
 
 def kota_kec(kec, rsm):
