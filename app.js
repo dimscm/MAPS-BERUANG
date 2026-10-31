@@ -340,50 +340,6 @@
     if (markers.length && !keepView) map.fitBounds(cluster.getBounds(), { padding: [30, 30], maxZoom: 16 });
   }
   function routeUrl(o) { return `https://www.google.com/maps/dir/?api=1&destination=${o.latitude},${o.longitude}`; }
-
-  // ---------- lapisan AHS (data terpisah dari outlet survei) ----------
-  const COLOR_AHS = "#7c3aed";
-  const AHS = (window.AHS_DATA?.rows || []).map((r) => {
-    const a = {};
-    window.AHS_DATA.cols.forEach((c, i) => { a[c] = r[i]; });
-    return a;
-  });
-  const AHS_LS = "maps-beruang-show-ahs";
-  const ahsCluster = L.markerClusterGroup({
-    chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 60,
-    iconCreateFunction: (c) => L.divIcon({
-      html: `<div><span>${c.getChildCount()}</span></div>`, className: "marker-cluster ahs-cluster", iconSize: L.point(40, 40),
-    }),
-  });
-  function telLinks(hp) {
-    const n = String(hp || "").replace(/[^\d]/g, "");
-    if (!n) return "";
-    const wa = n.startsWith("0") ? "62" + n.slice(1) : n;
-    return `<a href="tel:${n}">${esc(hp)}</a> · <a href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp ↗</a>`;
-  }
-  function ahsPopup(a) {
-    return `<div class="pop-title">${esc(a["Nama AHS"])}</div>
-      <div><span class="pill pill-ahs">AHS</span></div>
-      <div class="pop-sub">${esc(a.Alamat)}</div>
-      <div class="pop-sub">${esc([a.Kecamatan, a.Kota].filter(Boolean).join(", "))}</div>
-      ${a["No. HP"] ? `<div>${telLinks(a["No. HP"])}</div>` : ""}
-      <div class="pop-actions"><a class="btn btn-ghost pop-btn" href="${routeUrl(a)}" target="_blank" rel="noopener">Rute ↗</a></div>`;
-  }
-  ahsCluster.addLayers(AHS.map((a) => L.circleMarker([a.latitude, a.longitude], {
-    radius: touch ? 8 : 6, weight: 2, color: "#fff", fillColor: COLOR_AHS, fillOpacity: 0.95,
-  }).bindPopup(() => ahsPopup(a), { maxWidth: 280 })));
-  $("ahsCount").textContent = fmt.format(AHS.length);
-  $("showAhs").checked = lsGet(AHS_LS) !== "0";
-  const syncAhs = () => {
-    if ($("showAhs").checked) map.addLayer(ahsCluster); else map.removeLayer(ahsCluster);
-    lsSet(AHS_LS, $("showAhs").checked ? "1" : "0");
-  };
-  $("showAhs").addEventListener("change", syncAhs);
-  syncAhs();
-  function nearestAhs(o, n) {
-    return AHS.map((a) => [a, distM(o.latitude, o.longitude, a.latitude, a.longitude)])
-      .sort((x, y) => x[1] - y[1]).slice(0, n);
-  }
   // ---------- lokasi saya ----------
   const me = { lat: null, lng: null, acc: null, watch: null, picking: false, appliedAt: null, shown: 10 };
   const meLayer = L.layerGroup().addTo(map);
@@ -654,10 +610,6 @@
       ${section("Brand susu di toko", kv([
         ["TPH LS", e("TPH LS")], ["Di rak", e("Brand Susu di Toko")], ["Di chiller", e("Brand Susu di Chiller")],
       ]))}
-      ${AHS.length ? section("AHS terdekat", `<ol class="ahs-near">${nearestAhs(o, 3).map(([a, d]) => `<li>
-        <b>${esc(a["Nama AHS"])}</b> <span class="muted">· ${fmtDist(d)}</span><br>
-        <small>${esc(a.Alamat)}${a.Kecamatan ? ", " + esc(a.Kecamatan) : ""}</small><br>
-        <small>${a["No. HP"] ? telLinks(a["No. HP"]) + " · " : ""}<a href="${routeUrl(a)}" target="_blank" rel="noopener">Rute ↗</a></small></li>`).join("")}</ol>`) : ""}
       ${section("Foto", photos ? `<div class="photos">${photos}</div><div class="detail-links">${PHOTO_COLS.filter((c) => o[c])
         .map((c) => `<a href="${esc(o[c])}" target="_blank" rel="noopener">📷 Buka ${esc(c)} ↗</a>`).join("")}</div>` : "")}`;
     $("modal").classList.remove("hidden");
@@ -736,11 +688,6 @@
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       ws["!autofilter"] = { ref: ws["!ref"] };
       XLSX.utils.book_append_sheet(wb, ws, "Outlet");
-      if (AHS.length) {
-        const wsA = XLSX.utils.aoa_to_sheet([window.AHS_DATA.cols, ...window.AHS_DATA.rows]);
-        wsA["!autofilter"] = { ref: wsA["!ref"] };
-        XLSX.utils.book_append_sheet(wb, wsA, "AHS");
-      }
       const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
       const filename = `maps_beruang_${new Date().toISOString().slice(0, 10)}.xlsx`;
       const downloads = window.claude?.use ? await window.claude.use("downloads") : null;
@@ -759,7 +706,7 @@
   }
   $("btnExport").addEventListener("click", exportExcel);
 
-  $("subtitle").textContent = `${fmt.format(outlets.length)} outlet hasil survei · ${uniq(outlets, "RSM").length} RSM · ${new Set(outlets.map((o) => o.Kecamatan)).size} kecamatan${AHS.length ? ` · ${fmt.format(AHS.length)} AHS` : ""}`;
+  $("subtitle").textContent = `${fmt.format(outlets.length)} outlet hasil survei · ${uniq(outlets, "RSM").length} RSM · ${new Set(outlets.map((o) => o.Kecamatan)).size} kecamatan`;
   // tinggi header untuk posisi tab yang menempel (HP)
   const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", document.querySelector(".topbar").offsetHeight + "px");
   setTopbarH();

@@ -27,19 +27,6 @@ lalu menulis ulang `data/outlets.js` dan memberi penanda versi di `index.html`. 
 nama + koordinat, jadi tanda kunjungan tetap nyambung setelah data diperbarui. Kalau `app.js`/`style.css`/
 `config.js` diubah manual, jalankan `python3 scripts/stamp.py`.
 
-## Lapisan AHS
-
-`data/ahs.js` berisi 1.885 titik AHS Jakarta & Bekasi (lingkaran ungu di peta, bisa disembunyikan lewat
-centang **AHS** di bawah peta). Terpisah dari data outlet: tidak memengaruhi filter, angka, tabel, atau
-tanda kunjungan. Detail tiap outlet menampilkan 3 AHS terdekat (jarak, No. HP/WhatsApp, rute), dan
-Unduh Excel menyertakan sheet **AHS**. Memperbarui:
-
-```sh
-python3 scripts/convert_ahs.py AHS_Jakarta_Bekasi.xlsx
-```
-
-Koordinat yang tertukar (latitude/longitude) dibetulkan otomatis; baris tanpa koordinat valid dilewati.
-
 ## Tanda kunjungan bersama (Google Sheet)
 
 1. Buat Google Sheet baru (mis. "Kunjungan Maps Beruang").
