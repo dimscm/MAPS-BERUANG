@@ -36,8 +36,8 @@ nama + koordinat, jadi tanda kunjungan tetap nyambung setelah data diperbarui. K
 5. Tempel ke `config.js` (`window.VISITS_API = "…"`), jalankan `python3 scripts/stamp.py`, commit & push.
 
 Tab **Kunjungan** berisi satu baris per outlet (id, nama, RSM, kecamatan, kelurahan, status, tanggal, petugas,
-catatan). Tab per RSM (JAKBAR 1, JAKSEL 2, JAKTIM, BEKASI KOTA, …) dibuat otomatis dan isinya mengikuti tab
-Kunjungan lewat rumus `FILTER`. Web memuat ulang data tiap 30 detik. Kalau `Code.gs` diubah:
+catatan). Tab per RSM (JAKBAR 1, JAKSEL 2, JAKTIM, BEKASI KOTA, …) dibuat dan diperbarui otomatis setiap ada
+kunjungan disimpan (fungsi `perbaruiSemuaTabRSM` untuk membangun ulang semuanya). Web memuat ulang data tiap 30 detik. Kalau `Code.gs` diubah:
 **Deploy → Manage deployments → ✏️ → Version: New version** supaya URL tetap sama.
 
 Deploy otomatis ke GitHub Pages lewat `.github/workflows/deploy.yml` setiap push ke `main`.

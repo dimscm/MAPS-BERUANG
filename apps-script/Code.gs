@@ -6,8 +6,8 @@
  * Opsional: Project Settings → Script properties → KODE_TIM = <kode rahasia tim>.
  *
  * Tab "Kunjungan" = data utama (satu baris per outlet). Tab per RSM (JAKBAR 1, JAKSEL 2,
- * JAKTIM, BEKASI KOTA, …) dibuat otomatis dan isinya ikut ter-update lewat rumus FILTER,
- * jadi monitoring per area tidak perlu disalin manual.
+ * JAKTIM, BEKASI KOTA, …) dibuat & diperbarui otomatis setiap ada kunjungan disimpan.
+ * Untuk memperbaiki/membuat ulang semua tab RSM: pilih fungsi perbaruiSemuaTabRSM → Run.
  */
 const SHEET_NAME = "Kunjungan";
 const HEADERS = ["id", "Nama Toko", "RSM", "Kecamatan", "Kelurahan", "Status Kunjungan",
@@ -26,17 +26,30 @@ function getSheet_() {
   return sh;
 }
 
-// Tab per RSM: baris judul + rumus FILTER dari tab Kunjungan (selalu sinkron)
-function ensureRsmTab_(rsm) {
-  const name = String(rsm || "").trim().toUpperCase().replace(/[^A-Z0-9 _-]/g, "").slice(0, 40);
-  if (!name) return;
+// Tab per RSM: isinya disalin langsung dari tab Kunjungan (tanpa rumus, jadi tidak
+// terpengaruh pengaturan bahasa/locale Sheet). Diperbarui setiap ada simpan/hapus.
+function rsmName_(rsm) {
+  return String(rsm || "").trim().toUpperCase().replace(/[^A-Z0-9 _-]/g, "").slice(0, 40);
+}
+
+function syncRsmTab_(rsm) {
+  const name = rsmName_(rsm);
+  if (!name || name === SHEET_NAME.toUpperCase()) return;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (ss.getSheetByName(name)) return;
-  const sh = ss.insertSheet(name);
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  const rows = getSheet_().getDataRange().getValues().slice(1)
+    .filter((r) => r[C.id] && rsmName_(r[C.rsm]) === name);
+  sh.clearContents();
   sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight("bold").setBackground("#dbeafe");
   sh.setFrozenRows(1);
-  // setFormula selalu memakai sintaks bahasa Inggris (pemisah koma), apa pun locale sheet-nya
-  sh.getRange("A2").setFormula(`=IFERROR(FILTER(${SHEET_NAME}!A2:J, ${SHEET_NAME}!C2:C="${name}"), "")`);
+  if (rows.length) sh.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
+}
+
+// Jalankan sekali dari editor (pilih fungsi ini → Run) untuk membuat/memperbaiki semua tab RSM.
+function perbaruiSemuaTabRSM() {
+  const rsms = new Set(getSheet_().getDataRange().getValues().slice(1).map((r) => rsmName_(r[C.rsm])).filter(Boolean));
+  rsms.forEach((r) => syncRsmTab_(r));
 }
 
 function json_(obj) {
@@ -81,7 +94,11 @@ function doPost(e) {
     const ids = sh.getRange(1, 1, sh.getLastRow(), 1).getValues().map((r) => String(r[0]));
     const idx = ids.indexOf(String(b.id));
     if (b.remove) {
-      if (idx > 0) sh.deleteRow(idx + 1);
+      if (idx > 0) {
+        const oldRsm = sh.getRange(idx + 1, C.rsm + 1).getValue();
+        sh.deleteRow(idx + 1);
+        syncRsmTab_(oldRsm);
+      }
       return json_({ ok: true });
     }
     const row = [String(b.id), text_(b.nama), text_(b.rsm), text_(b.kecamatan), text_(b.kelurahan),
@@ -89,7 +106,7 @@ function doPost(e) {
       text_(b.by), text_(b.note), toDate_(b.updatedAt)];
     if (idx > 0) sh.getRange(idx + 1, 1, 1, row.length).setValues([row]);
     else sh.appendRow(row);
-    ensureRsmTab_(b.rsm);
+    syncRsmTab_(b.rsm);
     return json_({ ok: true });
   } finally {
     lock.releaseLock();
