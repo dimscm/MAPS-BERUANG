@@ -9,7 +9,7 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-ASSETS = ["style.css", "config.js", "data/outlets.js", "app.js"]
+ASSETS = ["style.css", "config.js", "data/outlets.js", "data/ahs.js", "app.js"]
 
 
 def stamp():

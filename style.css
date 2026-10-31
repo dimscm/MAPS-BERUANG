@@ -267,3 +267,16 @@ body.no-scroll { overflow: hidden; }
 }
 .top-actions .btn { white-space: nowrap; }
 #tbl a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* Lapisan AHS */
+.dot-ahs { background: #7c3aed; }
+.pill-ahs { background: #ede9fe; color: #6d28d9; }
+@media (prefers-color-scheme: dark) { .pill-ahs { background: #2e1f52; color: #c4b5fd; } }
+.ahs-toggle { font-weight: 600; font-size: 12px; gap: 6px; }
+.ahs-toggle input { width: 16px; height: 16px; }
+.marker-cluster.ahs-cluster { background: rgba(124, 58, 237, .25); }
+.marker-cluster.ahs-cluster div { background: rgba(124, 58, 237, .85); color: #fff; font-weight: 700; }
+.ahs-near { margin: 0; padding-left: 20px; }
+.ahs-near li { margin-bottom: 8px; }
+.ahs-near a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.leaflet-popup-content a { color: var(--accent); font-weight: 600; }

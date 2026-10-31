@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5cb10268f3">
+<link rel="stylesheet" href="style.css?v=0215f40add">
 </head>
 <body>
 <header class="topbar">
@@ -83,7 +83,8 @@
         <span><i class="dot dot-todo"></i>Belum didatangi</span>
         <span><i class="dot dot-done"></i>Sudah didatangi</span>
         <span><i class="dot dot-me"></i>Lokasi kamu</span>
-        <span class="muted">Angka di lingkaran = jumlah outlet di area itu</span>
+        <label class="check ahs-toggle"><input type="checkbox" id="showAhs" checked> <i class="dot dot-ahs"></i>AHS (<span id="ahsCount">0</span>)</label>
+        <span class="muted">Angka di lingkaran = jumlah titik di area itu</span>
       </div>
       <section class="nearby card" id="nearby">
         <div class="nearby-head">
@@ -150,6 +151,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js?v=1b49113fb0"></script>
 <script src="data/outlets.js?v=328d6d5223"></script>
-<script src="app.js?v=1e821023f3"></script>
+<script src="data/ahs.js?v=02aa32c2d9"></script>
+<script src="app.js?v=b77f8c0170"></script>
 </body>
 </html>
