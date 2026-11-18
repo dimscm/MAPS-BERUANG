@@ -16,8 +16,27 @@
   const PHOTO_COLS = ["Foto Toko", "Foto Chiller"];
   const PAGE = 50;
   const LS_KEY = "maps-beruang-visits";
-  const COLOR_VISITED = "#16a34a";
-  const COLOR_PENDING = "#ea580c";
+  // Hasil kunjungan yang bisa dipilih petugas.
+  const RESULTS = ["Deal NOO", "CB", "Belum mau CB", "Perlu follow up", "Toko tidak potensi"];
+  // Hasil yang wajib disertai alasan, beserta pilihan alasannya (selalu ditambah "Lainnya").
+  const REASONS = {
+    "Belum mau CB": ["Akses kendaraan susah", "Jalan buntu", "Harga tidak masuk / beli di agen"],
+    "Perlu follow up": ["Pemilik tidak ada", "Toko sedang tutup"],
+    "Toko tidak potensi": ["Toko terlalu kecil", "Penjualan sangat sedikit", "Lokasi sepi pembeli",
+      "Toko akan tutup / pindah"],
+  };
+  const OTHER = "Lainnya";
+  // "Belum mau CB" -> "belum mau CB" (singkatan tetap huruf besar).
+  const lowerFirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+  const STATUS = {
+    todo: { label: "Belum didatangi", short: "Belum", cls: "todo", color: "#ea580c", rank: 0 },
+    visited: { label: "Didatangi, belum ada hasil", short: "Didatangi", cls: "visited", color: "#64748b", rank: 1 },
+    "Toko tidak potensi": { label: "Toko tidak potensi", short: "Tidak potensi", cls: "np", color: "#db2777", rank: 2 },
+    "Perlu follow up": { label: "Perlu follow up", short: "Follow up", cls: "fu", color: "#eab308", rank: 3 },
+    "Belum mau CB": { label: "Belum mau CB", short: "Belum mau CB", cls: "nocb", color: "#dc2626", rank: 4 },
+    CB: { label: "CB", short: "CB", cls: "cb", color: "#16a34a", rank: 5 },
+    "Deal NOO": { label: "Deal NOO", short: "Deal NOO", cls: "noo", color: "#16a34a", rank: 6 },
+  };
 
   const state = { has: new Set(), sort: "Nama Toko", asc: true, page: 0 };
   let filtered = outlets;
@@ -63,7 +82,18 @@
     mode: window.claude?.use ? "pending" : API ? "api" : "local",
     db: null, user: null, uid: null, canWrite: true, needKey: false, loadedAt: null,
   };
-  const isVisited = (o) => !!visits.get(o.id)?.visited;
+  function statusKey(o) {
+    const v = visits.get(o.id);
+    if (v?.result && STATUS[v.result]) return v.result;
+    return v?.visited ? "visited" : "todo";
+  }
+  const statusOf = (o) => STATUS[statusKey(o)];
+  const isVisited = (o) => statusKey(o) !== "todo";
+  const reasonsOf = (o) => visits.get(o.id)?.reasons || [];
+  function pill(o, short) {
+    const st = statusOf(o);
+    return `<span class="pill pill-${st.cls}">${short ? st.short : st.label}</span>`;
+  }
 
   function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* abaikan */ } }
@@ -83,8 +113,22 @@
     renderSyncNote();
     if (sig === store.lastSig) return;
     store.lastSig = sig;
+    store.apiVersion = j.version || 1;
+    const inf = window.INFERRED_RESULTS || { items: {} };
     visits.clear();
-    j.visits.forEach((v) => visits.set(v.id, v));
+    j.visits.forEach((v) => {
+      const rec = Object.assign({}, v, {
+        result: v.result || "",
+        reasons: String(v.reasons || "").split("; ").filter(Boolean),
+      });
+      // Kunjungan lama (sebelum ada pilihan hasil): pakai hasil yang diperkirakan dari catatannya,
+      // selama hasilnya masih kosong dan catatannya belum diubah sejak diperkirakan.
+      const guess = inf.items[v.id];
+      if (!rec.result && guess && (!rec.updatedAt || rec.updatedAt <= inf.asOf)) {
+        Object.assign(rec, { result: guess.result, reasons: guess.reasons, inferred: true });
+      }
+      visits.set(v.id, rec);
+    });
     refresh();
   }
 
@@ -93,6 +137,7 @@
       key: lsGet(API_KEY_LS), id: o.id, nama: o["Nama Toko"], rsm: o.RSM,
       kecamatan: o.Kecamatan, kelurahan: o.Kelurahan, remove: !rec,
     }, rec || {});
+    if (rec) body.reasons = (rec.reasons || []).join("; ");
     const res = await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -222,7 +267,7 @@
   }
   makeChips($("fHas"), Object.keys(HAS), state.has);
 
-  Object.keys(selects).concat("fVisit", "fRadius").forEach((id) => $(id).addEventListener("change", () => {
+  Object.keys(selects).concat("fVisit", "fReason", "fRadius").forEach((id) => $(id).addEventListener("change", () => {
     if (id === "fRsm" || id === "fKota" || id === "fKec") cascade();
     apply();
   }));
@@ -231,6 +276,7 @@
   $("btnReset").addEventListener("click", () => {
     $("fSearch").value = "";
     $("fVisit").value = "";
+    $("fReason").value = "";
     $("fRadius").value = "";
     Object.keys(selects).forEach((id) => { $(id).value = ""; });
     state.has.clear();
@@ -246,11 +292,16 @@
   function apply(keepView) {
     const q = $("fSearch").value.trim().toLowerCase();
     const visit = $("fVisit").value;
+    const reason = $("fReason").value;
     const radius = me.lat != null ? +$("fRadius").value : 0;
     const sel = Object.entries(selects).map(([id, key]) => [key, $(id).value]).filter(([, v]) => v);
     filtered = outlets.filter((o) => {
       if (q && !o._search.includes(q)) return false;
-      if (visit && (visit === "sudah") !== isVisited(o)) return false;
+      if (visit) {
+        const k = statusKey(o);
+        if (visit === "belum" ? k !== "todo" : visit === "sudah" ? k === "todo" : k !== visit) return false;
+      }
+      if (reason && !reasonsOf(o).some((x) => (reason === OTHER ? x.startsWith(OTHER) : x === reason))) return false;
       if (radius && o._dist > radius) return false;
       for (const [k, v] of sel) if (o[k] !== v) return false;
       for (const h of state.has) if (!o[HAS[h]]) return false;
@@ -270,7 +321,7 @@
   }
   function renderFilterBadge() {
     const n = Object.keys(selects).filter((id) => $(id).value).length + state.has.size +
-      ["fSearch", "fVisit", "fRadius"].filter((id) => $(id).value).length;
+      ["fSearch", "fVisit", "fReason", "fRadius"].filter((id) => $(id).value).length;
     $("btnFilters").textContent = n ? `Filter (${n})` : "Filter";
     $("filterCount").textContent = `Lihat ${fmt.format(filtered.length)} outlet`;
   }
@@ -289,6 +340,10 @@
     $("kpis").innerHTML = [
       ["Jumlah outlet", fmt.format(n), `dari ${fmt.format(outlets.length)} total`],
       ["Sudah didatangi", fmt.format(visited), n ? `${Math.round((visited / n) * 100)}% · ${fmt.format(n - visited)} belum` : "–"],
+      ...RESULTS.map((res) => {
+        const c = filtered.filter((o) => statusKey(o) === res).length;
+        return [res, fmt.format(c), visited ? `${Math.round((c / visited) * 100)}% dari yang didatangi` : "–"];
+      }),
       ["Kecamatan", fmt.format(kec), `${new Set(filtered.map((o) => o.Kelurahan)).size} kelurahan`],
       ["Solus BB", fmt.format(solus), `${pctOf(solus, n)} dari outlet`],
       ["Ada status FU/NOO", fmt.format(withStatus), `${pctOf(withStatus, n)} · ${rsm} RSM`],
@@ -310,9 +365,8 @@
   const markerCache = new Map();
   let shownKey = "";
   function popupHtml(o) {
-    const done = isVisited(o);
     return `<div class="pop-title">${esc(o["Nama Toko"])}</div>
-        <div><span class="pill ${done ? "pill-done" : "pill-todo"}">${done ? "Sudah didatangi" : "Belum didatangi"}</span>
+        <div>${pill(o)}
           <span class="tag">${esc(o.Segmen)}</span></div>
         <div class="pop-sub">${esc(o.Pemilik ? "Pemilik " + o.Pemilik + " · " : "")}${esc(o.Kelurahan)}, ${esc(o.Kecamatan)} · ${esc(o.RSM)}</div>
         ${o["Status FU/NOO"] ? `<div>Status: <b>${esc(o["Status FU/NOO"])}</b></div>` : ""}
@@ -326,7 +380,8 @@
       m.bindPopup(() => popupHtml(o), { maxWidth: 280 }); // isi dibuat saat dibuka → status selalu terbaru
       markerCache.set(o._i, m);
     }
-    m.setStyle({ fillColor: isVisited(o) ? COLOR_VISITED : COLOR_PENDING });
+    const fill = statusOf(o).color;
+    if (m.options.fillColor !== fill) m.setStyle({ fillColor: fill });
     return m;
   }
   function renderMap(keepView) {
@@ -337,7 +392,11 @@
     shownKey = key;
     cluster.clearLayers();
     cluster.addLayers(markers);
-    if (markers.length && !keepView) map.fitBounds(cluster.getBounds(), { padding: [30, 30], maxZoom: 16 });
+    // Batas dihitung dari koordinat, bukan dari cluster: di HP lambat cluster masih dimuat bertahap
+    // sehingga batasnya belum valid ("Bounds are not valid") dan proses berhenti di tengah.
+    if (list.length && !keepView) {
+      map.fitBounds(L.latLngBounds(list.map((o) => [o.latitude, o.longitude])), { padding: [30, 30], maxZoom: 16 });
+    }
   }
   function routeUrl(o) { return `https://www.google.com/maps/dir/?api=1&destination=${o.latitude},${o.longitude}`; }
   // ---------- lokasi saya ----------
@@ -428,14 +487,13 @@
     if (me.lat == null) { list.innerHTML = ""; $("nearbyMore").hidden = true; return; }
     const near = filtered.filter((o) => o._dist != null).sort((a, b) => a._dist - b._dist);
     list.innerHTML = near.slice(0, me.shown).map((o) => {
-      const done = isVisited(o);
       return `<li class="near-item">
         <span class="near-dist">${fmtDist(o._dist)}</span>
         <button type="button" class="near-main" data-open="${o._i}">
           <b>${esc(o["Nama Toko"])}</b>
           <small>${esc([o.Kelurahan, o.Segmen, o["Status FU/NOO"]].filter(Boolean).join(" · "))}</small>
         </button>
-        <span class="pill ${done ? "pill-done" : "pill-todo"}">${done ? "Sudah" : "Belum"}</span>
+        ${pill(o, true)}
         <a class="near-route" href="${routeUrl(o)}" target="_blank" rel="noopener">Rute ↗</a>
       </li>`;
     }).join("") || '<li class="near-empty">Tidak ada outlet yang cocok dengan filter di sekitar lokasi ini.</li>';
@@ -465,7 +523,7 @@
   function renderTable() {
     const k = state.sort, dir = state.asc ? 1 : -1;
     const rows = [...filtered].sort((a, b) => {
-      if (k === "_visit") return (isVisited(a) - isVisited(b)) * dir;
+      if (k === "_visit") return (statusOf(a).rank - statusOf(b).rank) * dir;
       if (k === "_dist") return ((a._dist ?? Infinity) - (b._dist ?? Infinity)) * dir;
       return String(a[k]).localeCompare(String(b[k]), "id") * dir;
     });
@@ -474,9 +532,9 @@
     const slice = rows.slice(state.page * PAGE, state.page * PAGE + PAGE);
     document.querySelector("#tbl tbody").innerHTML = slice.map((o) => {
       const v = visits.get(o.id);
-      const done = !!v?.visited;
+      const noteText = [reasonsOf(o).join(", "), v?.note].filter(Boolean).join(" · ");
       return `<tr data-i="${o._i}">
-      <td><span class="pill ${done ? "pill-done" : "pill-todo"}">${done ? "Sudah" : "Belum"}</span></td>
+      <td>${pill(o, true)}</td>
       <td>${esc(o["Nama Toko"])}</td><td>${esc(o.Pemilik)}</td><td>${esc(o.RSM)}</td><td>${esc(o.Segmen)}</td>
       <td>${esc(o.Kecamatan)}</td><td>${esc(o.Kelurahan)}</td><td>${esc(o["Status FU/NOO"])}</td>
       <td>${esc(o["Kode Outlet"])}</td><td>${esc(o["Transaksi Collagena"])}</td><td>${esc(o["Transaksi S7K"])}</td>
@@ -485,7 +543,7 @@
       <td>${esc([o["Beli BB - Nama"] || o["Grosir BB"], o["Beli BB - Alamat"] || o["Lokasi Grosir BB"]].filter(Boolean).join(" — "))}</td>
       <td>${[["Toko", o["Foto Toko"]], ["Chiller", o["Foto Chiller"]]].filter(([, u]) => u)
         .map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${l}</a>`).join(" · ")}</td>
-      <td class="note-cell" title="${esc(v?.note)}">${esc(v?.note)}</td>
+      <td class="note-cell" title="${esc(noteText)}">${esc(noteText)}</td>
       <td class="num dist-col"${me.lat == null ? " hidden" : ""}>${o._dist != null ? fmtDist(o._dist) : ""}</td></tr>`;
     }).join("") ||
       '<tr><td colspan="18">Tidak ada outlet yang cocok dengan filter.</td></tr>';
@@ -518,9 +576,32 @@
       <div class="bar-track"><div class="bar-fill" style="width:${(v / max) * 100}%"></div></div>
       <span class="count">${fmt.format(v)}</span></div>`).join("") || "<p>Tidak ada data.</p>"}</div>`;
   }
+  // Nama petugas: di Google Sheet sudah berupa nama; di claude.ai berupa id yang perlu diterjemahkan.
+  const nameCache = {};
+  const namesPending = new Set();
+  function personName(id) {
+    if (!id) return "Tidak diisi";
+    if (store.mode !== "shared") return id;
+    if (id in nameCache) return nameCache[id] || "Tanpa nama";
+    if (!namesPending.has(id)) {
+      namesPending.add(id);
+      names([id]).then((m) => {
+        nameCache[id] = m[id] || "";
+        dirty.summary = true;
+        renderVisiblePanels();
+      });
+    }
+    return "Memuat nama…";
+  }
+
   function renderSummary() {
     const val = (k) => (o) => normStatus(o[k]);
     $("charts").innerHTML = [
+      barCard("Hasil kunjungan", countBy(filtered, (o) => statusOf(o).label)),
+      ...Object.keys(REASONS).map((res) => barCard(`Alasan ${lowerFirst(res)}`,
+        countBy(filtered.filter((o) => statusKey(o) === res), (o) => reasonsOf(o).map((x) => (x.startsWith(OTHER) ? OTHER : x))))),
+      barCard("Kunjungan per petugas", countBy(filtered.filter(isVisited), (o) => personName(visits.get(o.id)?.by)), 20),
+      barCard("Deal NOO / CB per RSM", countBy(filtered.filter((o) => ["Deal NOO", "CB"].includes(statusKey(o))), (o) => o.RSM), 15),
       barCard("Sudah didatangi per RSM", countBy(filtered.filter(isVisited), (o) => o.RSM), 15),
       barCard("Outlet per RSM", countBy(filtered, (o) => o.RSM), 15),
       barCard("Outlet per Kecamatan", countBy(filtered, (o) => o.Kecamatan), 15),
@@ -546,9 +627,38 @@
   function visitSection(o) {
     const v = visits.get(o.id);
     const locked = store.mode === "pending" || !store.canWrite || store.needKey;
+    // Google Sheet dengan skrip lama belum punya kolom hasil kunjungan.
+    const noResult = store.mode === "api" && store.apiVersion < 2;
+    const res = v?.result || "";
+    const reasons = v?.reasons || [];
+    const dis = locked || noResult ? "disabled" : "";
+    // Satu kotak alasan per hasil; hanya kotak milik hasil terpilih yang tampil.
+    const reasonBox = (rs) => {
+      const cls = STATUS[rs].cls;
+      const mine = res === rs ? reasons : [];
+      const other = mine.find((x) => x.startsWith(OTHER));
+      const otherText = other ? other.replace(/^Lainnya:?\s*/, "") : "";
+      return `<fieldset class="field reason-field" data-result="${esc(rs)}" ${res === rs ? "" : "hidden"}>
+        <legend>Alasan ${esc(lowerFirst(rs))} <small>(boleh lebih dari satu)</small></legend>
+        ${[...REASONS[rs], OTHER].map((x) => `<label class="check reason-opt">
+          <input type="checkbox" name="visitReason-${cls}" value="${esc(x)}" ${(x === OTHER ? !!other : mine.includes(x)) ? "checked" : ""} ${dis}> ${esc(x)}</label>`).join("")}
+        <input type="text" class="reason-other" placeholder="Tulis alasan lainnya" value="${esc(otherText)}" ${other ? "" : "hidden"} ${dis}>
+      </fieldset>`;
+    };
     return `<div class="detail-section visit-box">
       <h3>Kunjungan</h3>
-      <label class="check"><input type="checkbox" id="visitDone" ${v?.visited ? "checked" : ""} ${locked ? "disabled" : ""}> Sudah didatangi</label>
+      <label class="check"><input type="checkbox" id="visitDone" ${v?.visited || res ? "checked" : ""} ${locked ? "disabled" : ""}> Sudah didatangi</label>
+      <fieldset class="field result-field">
+        <legend>Hasil kunjungan <small>(ketuk lagi untuk membatalkan)</small></legend>
+        ${noResult ? `<p class="warn">Hasil kunjungan belum bisa disimpan karena skrip Google Sheet masih versi lama. Minta admin memperbarui Apps Script (lihat README).</p>` : ""}
+        ${v?.inferred ? `<p class="note-inferred">Hasil ini diisi otomatis dari catatan petugas. Periksa, lalu klik Simpan untuk menyimpannya ke Google Sheet.</p>` : ""}
+        <div class="seg" role="radiogroup">
+          ${RESULTS.map((x) => `<label class="seg-opt seg-${STATUS[x].cls}">
+            <input type="radio" name="visitResult" value="${esc(x)}" ${res === x ? "checked" : ""} ${dis}>
+            <span>${x}</span></label>`).join("")}
+        </div>
+      </fieldset>
+      ${Object.keys(REASONS).map(reasonBox).join("")}
       <label class="field"><span>Catatan</span>
         <textarea id="visitNote" rows="3" placeholder="mis. pemilik tertarik, minta dihubungi minggu depan" ${locked ? "disabled" : ""}>${esc(v?.note)}</textarea>
       </label>
@@ -567,9 +677,11 @@
     const el = $("visitMeta");
     if (!el) return;
     if (!v) { el.textContent = store.mode === "pending" ? "Menghubungkan penyimpanan…" : ""; return; }
-    const who = (await names([v.by]))[v.by];
-    el.textContent = [v.visited && v.visitedAt ? "Didatangi " + fmtDate(v.visitedAt) : "",
-      who ? "oleh " + who : "", v.updatedAt ? "· diperbarui " + fmtDate(v.updatedAt) : ""].filter(Boolean).join(" ");
+    const nm = await names([v.by, v.updatedBy]);
+    const who = nm[v.by], editor = nm[v.updatedBy];
+    el.textContent = [v.result ? v.result + " ·" : "", v.visited && v.visitedAt ? "Didatangi " + fmtDate(v.visitedAt) : "",
+      who ? "oleh " + who : "", v.updatedAt ? "· diperbarui " + fmtDate(v.updatedAt) : "",
+      editor && editor !== who ? "oleh " + editor : ""].filter(Boolean).join(" ");
   }
 
   function openDetail(i) {
@@ -615,11 +727,40 @@
     $("modal").classList.remove("hidden");
     renderVisitMeta(o);
 
+    // Memilih hasil berarti outlet sudah didatangi; kotak alasan mengikuti hasil yang dipilih.
+    // Mengetuk pilihan yang sudah terpilih membatalkannya.
+    const boxes = [...$("modalBody").querySelectorAll(".reason-field")];
+    let picked = visits.get(o.id)?.result || "";
+    $("modalBody").querySelectorAll('input[name="visitResult"]').forEach((el) => el.addEventListener("click", () => {
+      if (el.value === picked) { el.checked = false; picked = ""; } else { picked = el.value; }
+      if (picked) $("visitDone").checked = true;
+      boxes.forEach((b) => { b.hidden = b.dataset.result !== picked; });
+    }));
+    boxes.forEach((b) => {
+      const otherBox = b.querySelector(`input[value="${OTHER}"]`), text = b.querySelector(".reason-other");
+      otherBox.addEventListener("change", () => {
+        text.hidden = !otherBox.checked;
+        if (otherBox.checked) text.focus();
+      });
+    });
+
     $("visitSave").addEventListener("click", async () => {
       const btn = $("visitSave");
-      const done = $("visitDone").checked;
       const note = $("visitNote").value.trim();
       const prev = visits.get(o.id);
+      const result = $("modalBody").querySelector('input[name="visitResult"]:checked')?.value || "";
+      const done = $("visitDone").checked || !!result;
+      let reasons = [];
+      const box = boxes.find((b) => b.dataset.result === result);
+      if (box) {
+        reasons = [...box.querySelectorAll("input[type=checkbox]:checked")].map((el) => el.value).filter((x) => x !== OTHER);
+        if (box.querySelector(`input[value="${OTHER}"]`).checked) {
+          const text = box.querySelector(".reason-other"), txt = text.value.trim();
+          if (!txt) { $("visitMeta").textContent = "Tulis alasan lainnya, atau hapus centang Lainnya."; text.focus(); return; }
+          reasons.push(`${OTHER}: ${txt}`);
+        }
+        if (!reasons.length) { $("visitMeta").textContent = `Pilih minimal satu alasan ${lowerFirst(result)}.`; return; }
+      }
       const now = new Date().toISOString();
       let by = store.uid || "";
       if (store.mode === "api") {
@@ -629,10 +770,14 @@
       }
       const rec = done || note ? {
         visited: done,
+        result,
+        reasons,
         note,
         visitedAt: done ? (prev?.visited && prev.visitedAt) || now : "",
         updatedAt: now,
-        by,
+        // Nama pengunjung pertama tidak ditimpa; yang terakhir mengubah dicatat terpisah.
+        by: (prev?.visited && prev.by) || by,
+        updatedBy: by,
       } : null;
       btn.disabled = true;
       $("visitMeta").textContent = "Menyimpan…";
@@ -677,12 +822,15 @@
     const btn = $("btnExport");
     btn.disabled = true;
     try {
-      const who = await names(filtered.map((o) => visits.get(o.id)?.by));
-      const extra = ["Status Kunjungan", "Tanggal Kunjungan", "Dikunjungi oleh", "Catatan", "Terakhir diperbarui"];
+      const who = await names(filtered.flatMap((o) => [visits.get(o.id)?.by, visits.get(o.id)?.updatedBy]));
+      const extra = ["Status Kunjungan", "Hasil Kunjungan", "Alasan", "Hasil dari catatan", "Tanggal Kunjungan",
+        "Dikunjungi oleh", "Catatan", "Terakhir diperbarui", "Diperbarui oleh"];
       const aoa = [extra.concat(RAW.cols), ...filtered.map((o) => {
         const v = visits.get(o.id);
-        return [v?.visited ? "Sudah didatangi" : "Belum didatangi", fmtDate(v?.visitedAt), who[v?.by] || "",
-          v?.note || "", fmtDate(v?.updatedAt)].concat(RAW.cols.map((c) => o[c]));
+        return [isVisited(o) ? "Sudah didatangi" : "Belum didatangi", v?.result || "", reasonsOf(o).join("; "),
+          v?.inferred ? "Ya (belum dikonfirmasi)" : "",
+          fmtDate(v?.visitedAt), who[v?.by] || "", v?.note || "", fmtDate(v?.updatedAt),
+          who[v?.updatedBy] || who[v?.by] || ""].concat(RAW.cols.map((c) => o[c]));
       })];
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
