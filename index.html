@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-<link rel="stylesheet" href="style.css?v=5cb10268f3">
+<link rel="stylesheet" href="style.css?v=c239a00515">
 </head>
 <body>
 <header class="topbar">
@@ -43,7 +43,34 @@
       <select id="fVisit">
         <option value="">Semua</option>
         <option value="belum">Belum didatangi</option>
-        <option value="sudah">Sudah didatangi</option>
+        <option value="sudah">Sudah didatangi (semua hasil)</option>
+        <option value="Deal NOO">Deal NOO</option>
+        <option value="CB">CB</option>
+        <option value="Belum mau CB">Belum mau CB</option>
+        <option value="Perlu follow up">Perlu follow up</option>
+        <option value="Toko tidak potensi">Toko tidak potensi</option>
+        <option value="visited">Didatangi, belum ada hasil</option>
+      </select>
+    </label>
+    <label class="field"><span>Alasan</span>
+      <select id="fReason">
+        <option value="">Semua</option>
+        <optgroup label="Belum mau CB">
+          <option value="Akses kendaraan susah">Akses kendaraan susah</option>
+          <option value="Jalan buntu">Jalan buntu</option>
+          <option value="Harga tidak masuk / beli di agen">Harga tidak masuk / beli di agen</option>
+        </optgroup>
+        <optgroup label="Perlu follow up">
+          <option value="Pemilik tidak ada">Pemilik tidak ada</option>
+          <option value="Toko sedang tutup">Toko sedang tutup</option>
+        </optgroup>
+        <optgroup label="Toko tidak potensi">
+          <option value="Toko terlalu kecil">Toko terlalu kecil</option>
+          <option value="Penjualan sangat sedikit">Penjualan sangat sedikit</option>
+          <option value="Lokasi sepi pembeli">Lokasi sepi pembeli</option>
+          <option value="Toko akan tutup / pindah">Toko akan tutup / pindah</option>
+        </optgroup>
+        <option value="Lainnya">Lainnya (isian sendiri)</option>
       </select>
     </label>
     <label class="field"><span>Jarak dari lokasimu</span>
@@ -81,7 +108,11 @@
       <div id="map"></div>
       <div class="legend">
         <span><i class="dot dot-todo"></i>Belum didatangi</span>
-        <span><i class="dot dot-done"></i>Sudah didatangi</span>
+        <span><i class="dot dot-visited"></i>Didatangi, belum ada hasil</span>
+        <span><i class="dot dot-noo"></i>Deal NOO / CB</span>
+        <span><i class="dot dot-fu"></i>Perlu follow up</span>
+        <span><i class="dot dot-nocb"></i>Belum mau CB</span>
+        <span><i class="dot dot-np"></i>Toko tidak potensi</span>
         <span><i class="dot dot-me"></i>Lokasi kamu</span>
         <span class="muted">Angka di lingkaran = jumlah outlet di area itu</span>
       </div>
@@ -149,7 +180,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js?v=1b49113fb0"></script>
+<script src="data/hasil-dari-catatan.js?v=c3c4e49ccf"></script>
 <script src="data/outlets.js?v=328d6d5223"></script>
-<script src="app.js?v=1e821023f3"></script>
+<script src="app.js?v=b0597188b2"></script>
 </body>
 </html>

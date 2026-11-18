@@ -11,8 +11,11 @@
  */
 const SHEET_NAME = "Kunjungan";
 const HEADERS = ["id", "Nama Toko", "RSM", "Kecamatan", "Kelurahan", "Status Kunjungan",
-  "Tanggal Kunjungan", "Dikunjungi oleh", "Catatan", "Terakhir diperbarui"];
-const C = { id: 0, rsm: 2, status: 5, visitedAt: 6, by: 7, note: 8, updatedAt: 9 };
+  "Tanggal Kunjungan", "Dikunjungi oleh", "Catatan", "Terakhir diperbarui",
+  "Hasil Kunjungan", "Alasan", "Diperbarui oleh"];
+const C = { id: 0, rsm: 2, status: 5, visitedAt: 6, by: 7, note: 8, updatedAt: 9, result: 10, reasons: 11, updatedBy: 12 };
+// Versi 2 menambah kolom K-M. Baris lama tetap dibaca apa adanya (hasilnya kosong).
+const VERSION = 2;
 
 function getSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -23,7 +26,23 @@ function getSheet_() {
     sh.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold").setBackground("#dbeafe");
     sh.setFrozenRows(1);
   }
+  ensureHeaders_(sh);
   return sh;
+}
+
+// Lengkapi judul kolom baru tanpa mengubah data yang sudah ada.
+function ensureHeaders_(sh) {
+  const current = sh.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  HEADERS.forEach((h, i) => {
+    if (!current[i]) sh.getRange(1, i + 1).setValue(h).setFontWeight("bold").setBackground("#dbeafe");
+  });
+}
+
+// Satu baris data tepat selebar HEADERS (kolom lebih dipotong, kurang ditambah kosong).
+function fit_(r) {
+  const x = r.slice(0, HEADERS.length);
+  while (x.length < HEADERS.length) x.push("");
+  return x;
 }
 
 // Tab per RSM: isinya disalin langsung dari tab Kunjungan (tanpa rumus, jadi tidak
@@ -39,7 +58,7 @@ function syncRsmTab_(rsm) {
   let sh = ss.getSheetByName(name);
   if (!sh) sh = ss.insertSheet(name);
   const rows = getSheet_().getDataRange().getValues().slice(1)
-    .filter((r) => r[C.id] && rsmName_(r[C.rsm]) === name);
+    .filter((r) => r[C.id] && rsmName_(r[C.rsm]) === name).map(fit_);
   sh.clearContents();
   sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight("bold").setBackground("#dbeafe");
   sh.setFrozenRows(1);
@@ -77,8 +96,11 @@ function doGet(e) {
     by: untext_(r[C.by]),
     note: untext_(r[C.note]),
     updatedAt: toIso_(r[C.updatedAt]),
+    result: untext_(r[C.result]),
+    reasons: untext_(r[C.reasons]),
+    updatedBy: untext_(r[C.updatedBy]),
   }));
-  return json_({ ok: true, visits: visits });
+  return json_({ ok: true, version: VERSION, visits: visits });
 }
 
 function doPost(e) {
@@ -101,9 +123,17 @@ function doPost(e) {
       }
       return json_({ ok: true });
     }
+    let result = text_(b.result);
+    let reasons = text_(Array.isArray(b.reasons) ? b.reasons.join("; ") : b.reasons);
+    // Web versi lama tidak mengirim hasil: pertahankan isi kolom hasil & alasan yang sudah ada.
+    if (b.result === undefined && idx > 0) {
+      const old = sh.getRange(idx + 1, C.result + 1, 1, 2).getValues()[0];
+      result = old[0];
+      reasons = old[1];
+    }
     const row = [String(b.id), text_(b.nama), text_(b.rsm), text_(b.kecamatan), text_(b.kelurahan),
       b.visited ? "Sudah didatangi" : "Belum didatangi", toDate_(b.visitedAt),
-      text_(b.by), text_(b.note), toDate_(b.updatedAt)];
+      text_(b.by), text_(b.note), toDate_(b.updatedAt), result, reasons, text_(b.updatedBy || b.by)];
     if (idx > 0) sh.getRange(idx + 1, 1, 1, row.length).setValues([row]);
     else sh.appendRow(row);
     syncRsmTab_(b.rsm);

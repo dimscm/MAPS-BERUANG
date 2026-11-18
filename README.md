@@ -11,7 +11,8 @@ Fitur:
 - **Tabel** yang bisa diurutkan, klik baris untuk detail lengkap + foto toko
 - **Ringkasan** per RSM, kecamatan, segmen, status FU/NOO, transaksi, sumber pembelian S7K/BB
 - Filter: pencarian, status kunjungan, jarak, RSM → kota → kecamatan → kelurahan, segmen, status FU/NOO, punya data
-- Tanda **sudah didatangi** + catatan per outlet, terlihat oleh seluruh tim lewat Google Sheet
+- Tanda **sudah didatangi** + **hasil kunjungan** (Deal NOO, CB, Belum mau CB, Perlu follow up, Toko tidak potensi)
+  beserta alasannya + catatan per outlet, terlihat oleh seluruh tim lewat Google Sheet
 - Unduh Excel sesuai filter, termasuk status, tanggal, petugas, dan catatan kunjungan
 
 ## Memperbarui data
@@ -41,3 +42,15 @@ kunjungan disimpan (fungsi `perbaruiSemuaTabRSM` untuk membangun ulang semuanya)
 **Deploy → Manage deployments → ✏️ → Version: New version** supaya URL tetap sama.
 
 Deploy otomatis ke GitHub Pages lewat `.github/workflows/deploy.yml` setiap push ke `main`.
+
+### Memperbarui skrip ke versi 2 (hasil kunjungan)
+
+Versi 2 menambah kolom **K Hasil Kunjungan**, **L Alasan**, dan **M Diperbarui oleh** (juga di tab per RSM).
+Baris yang sudah ada tidak diubah; kolom baru hanya ditambahkan judulnya.
+
+1. Buka Google Sheet tim → **Extensions → Apps Script**.
+2. Ganti seluruh isi `Code.gs` dengan isi terbaru [`apps-script/Code.gs`](apps-script/Code.gs), lalu simpan.
+3. **Deploy → Manage deployments** → ✏️ **Edit** → **Version: New version** → **Deploy**. URL tetap sama.
+
+Selama skrip belum diperbarui, web tetap bisa menyimpan tanda didatangi dan catatan, tetapi pilihan
+hasil kunjungan dinonaktifkan dengan peringatan.
